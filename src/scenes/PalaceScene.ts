@@ -154,7 +154,9 @@ export class PalaceScene extends Phaser.Scene {
         const animationKey = 'vaynika-' + animation;
         if (this.player.anims.currentAnim?.key !== animationKey) this.player.play(animationKey);
         if (this.characterVisual) {
-            const visualKey = 'aaranya-' + this.costume + '-' + animation;
+            const preferredKey = 'aaranya-' + this.costume + '-' + animation;
+            const visualKey = this.anims.exists(preferredKey) ? preferredKey :
+                'aaranya-' + this.costume + '-idle';
             if (this.characterVisual.anims.currentAnim?.key !== visualKey) {
                 this.characterVisual.play(visualKey);
             }
