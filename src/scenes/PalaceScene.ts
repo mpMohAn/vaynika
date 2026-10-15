@@ -39,7 +39,7 @@ export class PalaceScene extends Phaser.Scene {
         this.attackPressed = false;
         this.guardWindupUntil = 0;
         this.guardReadyAt = 0;
-        this.showFps = false;
+        this.showFps = true;
         this.nextFpsUpdate = 0;
 
         this.makeTextures();
@@ -81,7 +81,7 @@ export class PalaceScene extends Phaser.Scene {
             fontSize: '14px', color: '#f6e5d4'
         }).setOrigin(0.5);
         this.swordEffect = this.add.rectangle(0, 0, 47, 7, 0xf4e9ca).setVisible(false);
-        this.fpsText = this.add.text(820, 75, '', { fontSize: '15px', color: '#d9e9d2' }).setVisible(false);
+        this.fpsText = this.add.text(820, 75, 'FPS --', { fontSize: '18px', color: '#d9e9d2', backgroundColor: '#211d2d', padding: { x: 8, y: 5 } }).setDepth(100).setVisible(true);
         this.setupTouch();
         this.refreshHud();
     }
