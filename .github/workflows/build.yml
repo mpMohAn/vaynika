@@ -23,3 +23,7 @@ jobs:
         run: npm run test:assets
       - name: Typecheck and build
         run: npm run build
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Gameplay browser smoke test
+        run: npm run test:smoke
