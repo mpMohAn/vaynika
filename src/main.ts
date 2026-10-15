@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import { PalaceScene } from './scenes/PalaceScene';
 import './style.css';
 
-new Phaser.Game({
+const game = new Phaser.Game({
     type: Phaser.AUTO,
     parent: 'game',
     width: 960,
@@ -19,3 +19,6 @@ new Phaser.Game({
     scene: [PalaceScene],
     render: { pixelArt: false, antialias: true }
 });
+
+// Browser smoke-test hook: available only in Vite development mode.
+if (import.meta.env.DEV) Object.assign(window, { __vaynikaGame: game });
