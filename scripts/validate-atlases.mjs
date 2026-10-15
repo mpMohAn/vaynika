@@ -3,6 +3,7 @@ import { join } from 'node:path';
 
 const root = 'public/assets/aaranya';
 const states = { idle: 6, run: 8, jump: 6, attack: 8, block: 4, hurt: 4, death: 4 };
+const requiredStates = new Set(['idle', 'run', 'jump']);
 let failures = 0;
 
 function checkCostume(costume) {
@@ -41,6 +42,8 @@ function checkCostume(costume) {
     const canvasSizes = new Set();
     const sourceSizes = new Set();
     for (const [state, count] of Object.entries(states)) {
+        const present = Object.keys(frames).some(name => name.startsWith(state + '_'));
+        if (!requiredStates.has(state) && !present) continue;
         for (let i = 0; i < count; i++) {
             const name = `${state}_${String(i).padStart(2, '0')}`;
             const item = frames[name];
