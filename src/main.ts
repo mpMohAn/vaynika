@@ -1,6 +1,9 @@
 import Phaser from 'phaser';
 import { PalaceScene } from './scenes/PalaceScene';
 import './style.css';
+import { resolveAvailableCostume } from './animation/costumeAvailability';
+
+const availableCostume = await resolveAvailableCostume(window.location.search);
 
 const game = new Phaser.Game({
     type: Phaser.AUTO,
@@ -16,7 +19,7 @@ const game = new Phaser.Game({
         default: 'arcade',
         arcade: { gravity: { x: 0, y: 950 }, debug: false }
     },
-    scene: [PalaceScene],
+    scene: [new PalaceScene(availableCostume)],
     render: { pixelArt: false, antialias: true }
 });
 
