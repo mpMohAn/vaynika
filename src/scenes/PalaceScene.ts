@@ -24,6 +24,11 @@ export class PalaceScene extends Phaser.Scene {
     private nextFpsUpdate = 0;
     private guardWindupUntil = 0;
     private guardReadyAt = 0;
+    private lastPlayerTint = -1;
+    private exitHintShown = false;
+    private sampleUpdateMs = 0;
+    private sampleFrames = 0;
+    private lastUpdateMs = 0;
 
     constructor() { super('Palace'); }
 
@@ -41,6 +46,11 @@ export class PalaceScene extends Phaser.Scene {
         this.guardReadyAt = 0;
         this.showFps = true;
         this.nextFpsUpdate = 0;
+        this.lastPlayerTint = -1;
+        this.exitHintShown = false;
+        this.sampleUpdateMs = 0;
+        this.sampleFrames = 0;
+        this.lastUpdateMs = 0;
 
         this.makeTextures();
         this.cameras.main.setBackgroundColor('#30283b');
@@ -81,7 +91,7 @@ export class PalaceScene extends Phaser.Scene {
             fontSize: '14px', color: '#f6e5d4'
         }).setOrigin(0.5);
         this.swordEffect = this.add.rectangle(0, 0, 47, 7, 0xf4e9ca).setVisible(false);
-        this.fpsText = this.add.text(820, 75, 'FPS --', { fontSize: '18px', color: '#d9e9d2', backgroundColor: '#211d2d', padding: { x: 8, y: 5 } }).setDepth(100).setVisible(true);
+        this.fpsText = this.add.text(710, 75, 'FPS -- | CPU --ms', { fontSize: '18px', color: '#d9e9d2', backgroundColor: '#211d2d', padding: { x: 8, y: 5 } }).setDepth(100).setVisible(true);
         this.setupTouch();
         this.refreshHud();
     }
@@ -96,10 +106,14 @@ export class PalaceScene extends Phaser.Scene {
             this.fpsText.setVisible(this.showFps);
         }
         if (this.showFps && time >= this.nextFpsUpdate) {
-            this.fpsText.setText('FPS ' + Math.round(this.game.loop.actualFps));
+            const meanUpdate = this.sampleFrames ? this.sampleUpdateMs / this.sampleFrames : 0;
+            this.fpsText.setText('FPS ' + Math.round(this.game.loop.actualFps) + ' | CPU ' + meanUpdate.toFixed(2) + 'ms');
+            this.sampleFrames = 0;
+            this.sampleUpdateMs = 0;
             this.nextFpsUpdate = time + 500;
         }
         if (this.gameOver) return;
+        const updateStart = performance.now();
 
         const left = this.cursors.left.isDown || this.keys.A.isDown || this.touch.left;
         const right = this.cursors.right.isDown || this.keys.D.isDown || this.touch.right;
@@ -112,7 +126,11 @@ export class PalaceScene extends Phaser.Scene {
         if (direction !== 0) this.player.setFlipX(direction < 0);
         const body = this.player.body as Phaser.Physics.Arcade.Body;
         if (jump && body.blocked.down && !block) this.player.setVelocityY(-470);
-        this.player.setTint(block ? 0x91c8db : time < this.invulnerableUntil ? 0xffa7a7 : 0xffffff);
+        const desiredTint = block ? 0x91c8db : time < this.invulnerableUntil ? 0xffa7a7 : 0xffffff;
+        if (desiredTint !== this.lastPlayerTint) {
+            this.player.setTint(desiredTint);
+            this.lastPlayerTint = desiredTint;
+        }
 
         if (attack && !this.attackPressed && !block && time - this.lastAttack > 350) {
             this.lastAttack = time;
@@ -159,8 +177,14 @@ export class PalaceScene extends Phaser.Scene {
 
         if (this.player.x > 885 && body.blocked.down) {
             if (!this.guardAlive) this.finish('VICTORY! Suvarnagiri will never kneel. Press R to replay.');
-            else this.statusText.setText('Defeat the guard before escaping!');
+            else if (!this.exitHintShown) {
+                this.statusText.setText('Defeat the guard before escaping!');
+                this.exitHintShown = true;
+            }
         }
+        this.lastUpdateMs = performance.now() - updateStart;
+        this.sampleUpdateMs += this.lastUpdateMs;
+        this.sampleFrames++;
     }
 
     private damage(time: number): void {
