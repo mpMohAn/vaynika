@@ -18,6 +18,6 @@ Required named frames (zero-based, padded to two digits):
 
 Each source pose should be exported at 300×300 px with transparent background, consistent character scale, center line, foot baseline, facing right and no clipped hair, sword, boots or cloth. Keep collision boxes independent of visible artwork. Pack frames into one or more power-of-two-friendly atlases, avoiding excessive blank space.
 
-**Activation:** Once both files exist and all named frames validate, the game uses the atlas automatically. Until then, the existing lightweight placeholders remain functional.
+**Activation:** The atlas validator and animation registration utilities are ready, but the game still uses placeholders. Runtime atlas loading and character sizing will be connected only after the first complete asset set is approved and tested.
 
 The final art must preserve Vaynika's approved facial identity, hairstyle, proportions and black/bronze/crimson palette; no magical effects. License original assets CC BY 4.0, and document external asset sources separately.
