@@ -94,9 +94,17 @@ try {
         const attacked = await page.evaluate(() => window.__vaynikaGame.scene.getScene('Palace').lastAttack > 0);
         assert(attacked, (costume || 'default') + ': attack input');
 
-        await page.keyboard.press('f');
-        await page.waitForTimeout(60);
-        assert(!(await snapshot(page)).fpsVisible, (costume || 'default') + ': FPS toggle');
+        // Phaser checks JustDown during its update loop. Hold the key
+        // across several frames instead of using a very short key press.
+        const fpsBefore = (await snapshot(page)).fpsVisible;
+        await page.keyboard.down('f');
+        await page.waitForFunction(previous => {
+            const scene = window.__vaynikaGame?.scene.getScene('Palace');
+            return scene?.fpsText?.visible === !previous;
+        }, fpsBefore, { timeout: 3000 });
+        await page.keyboard.up('f');
+        assert((await snapshot(page)).fpsVisible !== fpsBefore,
+            (costume || 'default') + ': FPS toggle');
 
         await page.keyboard.press('r');
         await page.waitForTimeout(200);
