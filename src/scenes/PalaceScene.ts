@@ -1,9 +1,12 @@
 import Phaser from 'phaser';
+import { hasCompleteCharacterAtlas, registerCharacterAtlasAnimations, type CharacterCostume } from '../animation/characterAnimations';
 
 type Fighter = Phaser.Physics.Arcade.Sprite;
 
 export class PalaceScene extends Phaser.Scene {
     private player!: Fighter;
+    private characterVisual?: Phaser.GameObjects.Sprite;
+    private costume: CharacterCostume | null = null;
     private guard!: Fighter;
     private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
     private keys!: Record<string, Phaser.Input.Keyboard.Key>;
@@ -32,6 +35,19 @@ export class PalaceScene extends Phaser.Scene {
     private attackAnimationUntil = 0;
 
     constructor() { super('Palace'); }
+
+    preload(): void {
+        // Opt-in art preview: ?costume=crimson or ?costume=lehenga.
+        // Missing/incomplete assets never disable the existing playable prototype.
+        const requested = new URLSearchParams(window.location.search).get('costume');
+        this.costume = requested === 'crimson' || requested === 'lehenga' ? requested : null;
+        if (this.costume) {
+            const name = this.costume;
+            this.load.atlas('aaranya-' + name + '-atlas',
+                'assets/aaranya/' + name + '/atlas.png',
+                'assets/aaranya/' + name + '/atlas.json');
+        }
+    }
 
     create(): void {
         this.health = 5;
@@ -79,6 +95,7 @@ export class PalaceScene extends Phaser.Scene {
         this.player.body!.setSize(30, 72).setOffset(11, 7);
         this.physics.add.collider(this.player, platforms);
         this.player.play('vaynika-idle');
+        this.createCharacterVisual();
 
         this.guard = this.physics.add.sprite(670, 430, 'guard');
         this.guard.setCollideWorldBounds(true);
@@ -135,9 +152,18 @@ export class PalaceScene extends Phaser.Scene {
             !body.blocked.down ? 'jump' : direction !== 0 ? 'run' : 'idle';
         const animationKey = 'vaynika-' + animation;
         if (this.player.anims.currentAnim?.key !== animationKey) this.player.play(animationKey);
+        if (this.characterVisual) {
+            const visualKey = 'aaranya-' + this.costume + '-' + animation;
+            if (this.characterVisual.anims.currentAnim?.key !== visualKey) {
+                this.characterVisual.play(visualKey);
+            }
+            this.characterVisual.setPosition(this.player.x, this.player.y + 41);
+            this.characterVisual.setFlipX(this.player.flipX);
+        }
         const desiredTint = block ? 0x91c8db : time < this.invulnerableUntil ? 0xffa7a7 : 0xffffff;
         if (desiredTint !== this.lastPlayerTint) {
             this.player.setTint(desiredTint);
+            this.characterVisual?.setTint(desiredTint);
             this.lastPlayerTint = desiredTint;
         }
 
@@ -195,6 +221,25 @@ export class PalaceScene extends Phaser.Scene {
         this.lastUpdateMs = performance.now() - updateStart;
         this.sampleUpdateMs += this.lastUpdateMs;
         this.sampleFrames++;
+    }
+
+    private createCharacterVisual(): void {
+        this.characterVisual = undefined;
+        if (!this.costume || !hasCompleteCharacterAtlas(this, this.costume)) return;
+        registerCharacterAtlasAnimations(this, this.costume);
+        const atlasKey = 'aaranya-' + this.costume + '-atlas';
+        // The visual is independent of the Arcade body and is anchored to its feet.
+        this.characterVisual = this.add.sprite(this.player.x, this.player.y + 41,
+            atlasKey, 'idle_00').setOrigin(0.5, 1).setDepth(this.player.depth + 1);
+        const sourceHeight = this.characterVisual.height;
+        if (sourceHeight <= 0) {
+            this.characterVisual.destroy();
+            this.characterVisual = undefined;
+            return;
+        }
+        this.characterVisual.setScale(82 / sourceHeight);
+        this.characterVisual.play('aaranya-' + this.costume + '-idle');
+        this.player.setAlpha(0);
     }
 
     private damage(time: number): void {
