@@ -29,6 +29,7 @@ export class PalaceScene extends Phaser.Scene {
     private sampleUpdateMs = 0;
     private sampleFrames = 0;
     private lastUpdateMs = 0;
+    private attackAnimationUntil = 0;
 
     constructor() { super('Palace'); }
 
@@ -51,8 +52,10 @@ export class PalaceScene extends Phaser.Scene {
         this.sampleUpdateMs = 0;
         this.sampleFrames = 0;
         this.lastUpdateMs = 0;
+        this.attackAnimationUntil = 0;
 
         this.makeTextures();
+        this.registerAnimations();
         this.cameras.main.setBackgroundColor('#30283b');
         this.add.rectangle(480, 255, 960, 510, 0x3b3045);
         this.add.rectangle(480, 420, 960, 200, 0x554050);
@@ -75,6 +78,7 @@ export class PalaceScene extends Phaser.Scene {
         this.player.setCollideWorldBounds(true).setMaxVelocity(250, 750);
         this.player.body!.setSize(30, 72).setOffset(11, 7);
         this.physics.add.collider(this.player, platforms);
+        this.player.play('vaynika-idle');
 
         this.guard = this.physics.add.sprite(670, 430, 'guard');
         this.guard.setCollideWorldBounds(true);
@@ -126,6 +130,11 @@ export class PalaceScene extends Phaser.Scene {
         if (direction !== 0) this.player.setFlipX(direction < 0);
         const body = this.player.body as Phaser.Physics.Arcade.Body;
         if (jump && body.blocked.down && !block) this.player.setVelocityY(-470);
+        const animation = time < this.invulnerableUntil ? 'hurt' :
+            block ? 'block' : time < this.attackAnimationUntil ? 'attack' :
+            !body.blocked.down ? 'jump' : direction !== 0 ? 'run' : 'idle';
+        const animationKey = 'vaynika-' + animation;
+        if (this.player.anims.currentAnim?.key !== animationKey) this.player.play(animationKey);
         const desiredTint = block ? 0x91c8db : time < this.invulnerableUntil ? 0xffa7a7 : 0xffffff;
         if (desiredTint !== this.lastPlayerTint) {
             this.player.setTint(desiredTint);
@@ -134,6 +143,7 @@ export class PalaceScene extends Phaser.Scene {
 
         if (attack && !this.attackPressed && !block && time - this.lastAttack > 350) {
             this.lastAttack = time;
+            this.attackAnimationUntil = time + 240;
             const facing = this.player.flipX ? -1 : 1;
             this.tweens.killTweensOf(this.swordEffect);
             this.swordEffect.setPosition(this.player.x + facing * 39, this.player.y - 9);
@@ -231,6 +241,50 @@ export class PalaceScene extends Phaser.Scene {
         g.fillStyle(0x292e36).fillRect(12, 65, 11, 16).fillRect(30, 65, 11, 16);
         g.generateTexture('guard', 52, 82);
         g.destroy();
+        // Temporary animation poses use small reusable textures. Final detailed
+        // anime spritesheets can replace these without changing physics or controls.
+        const pose = this.make.graphics({ x: 0, y: 0 });
+        for (const state of ['idle', 'run', 'jump', 'attack', 'block', 'hurt']) {
+            const count = state === 'run' ? 6 : state === 'idle' ? 4 : 1;
+            for (let i = 0; i < count; i++) {
+                pose.clear();
+                const stride = state === 'run' ? Math.sin(i * Math.PI / 3) * 7 : 0;
+                const bob = state === 'idle' ? Math.sin(i * Math.PI / 2) * 1.5 : 0;
+                const lean = state === 'attack' ? 4 : state === 'hurt' ? -3 : 0;
+                const y = state === 'jump' ? -4 : bob;
+                pose.fillStyle(0x241923).fillEllipse(26 + lean, 21 + y, 35, 36);
+                pose.fillStyle(0xb98260).fillEllipse(26 + lean, 21 + y, 23, 26);
+                pose.fillStyle(0x261b28).fillRect(13 + lean, 8 + y, 25, 7);
+                pose.fillStyle(state === 'block' ? 0x3d5965 : 0x252832)
+                    .fillRoundedRect(11 + lean, 36 + y, 30, 29, 5);
+                pose.lineStyle(3, 0xc18b51).strokeRoundedRect(11 + lean, 36 + y, 30, 29, 5);
+                pose.fillStyle(0x9b2b3c).fillTriangle(11 + lean, 38 + y, 0, 80, 21, 71);
+                pose.lineStyle(9, 0x24232b);
+                pose.lineBetween(18 + lean, 64 + y, 18 + lean + stride, 78);
+                pose.lineBetween(35 + lean, 64 + y, 35 + lean - stride, 78);
+                if (state === 'attack') {
+                    pose.lineStyle(5, 0xb98260).lineBetween(40, 40, 51, 23);
+                } else if (state === 'block') {
+                    pose.lineStyle(5, 0xb98260).lineBetween(38, 45, 24, 30);
+                }
+                pose.generateTexture('vaynika-' + state + '-' + i, 52, 82);
+            }
+        }
+        pose.destroy();
+    }
+
+    private registerAnimations(): void {
+        for (const [state, count, rate] of [
+            ['idle', 4, 5], ['run', 6, 12], ['jump', 1, 1],
+            ['attack', 1, 1], ['block', 1, 1], ['hurt', 1, 1]
+        ] as const) {
+            const key = 'vaynika-' + state;
+            if (this.anims.exists(key)) continue;
+            const frames = Array.from({ length: count }, (_, i) => ({
+                key: key + '-' + i
+            }));
+            this.anims.create({ key, frames, frameRate: rate, repeat: -1 });
+        }
     }
 
     private setupTouch(): void {
