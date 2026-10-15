@@ -18,6 +18,12 @@ export class PalaceScene extends Phaser.Scene {
     private statusText!: Phaser.GameObjects.Text;
     private touch = { left: false, right: false, jump: false, attack: false, block: false };
     private attackPressed = false;
+    private swordEffect!: Phaser.GameObjects.Rectangle;
+    private fpsText!: Phaser.GameObjects.Text;
+    private showFps = false;
+    private nextFpsUpdate = 0;
+    private guardWindupUntil = 0;
+    private guardReadyAt = 0;
 
     constructor() { super('Palace'); }
 
@@ -31,6 +37,10 @@ export class PalaceScene extends Phaser.Scene {
         this.guardAlive = true;
         this.touch = { left: false, right: false, jump: false, attack: false, block: false };
         this.attackPressed = false;
+        this.guardWindupUntil = 0;
+        this.guardReadyAt = 0;
+        this.showFps = false;
+        this.nextFpsUpdate = 0;
 
         this.makeTextures();
         this.cameras.main.setBackgroundColor('#30283b');
@@ -63,14 +73,15 @@ export class PalaceScene extends Phaser.Scene {
 
         this.add.rectangle(916, 430, 44, 100, 0x9b723b).setStrokeStyle(3, 0xf4cd7d);
         this.add.text(916, 362, 'EXIT', { fontSize: '16px', color: '#ffdf9c' }).setOrigin(0.5);
-        this.physics.add.overlap(this.player, this.guard, () => this.guardContact());
         this.cursors = this.input.keyboard!.createCursorKeys();
-        this.keys = this.input.keyboard!.addKeys('A,D,W,J,K,R,SHIFT,SPACE') as Record<string, Phaser.Input.Keyboard.Key>;
+        this.keys = this.input.keyboard!.addKeys('A,D,W,J,K,R,SHIFT,SPACE,F') as Record<string, Phaser.Input.Keyboard.Key>;
         this.healthText = this.add.text(24, 75, '', { fontSize: '19px', color: '#ffe5c1' });
         this.statusText = this.add.text(480, 115, '', { fontSize: '20px', color: '#fff0ca', align: 'center' }).setOrigin(0.5);
         this.add.text(480, 505, 'A/D MOVE   •   W/SPACE JUMP   •   J ATTACK   •   K BLOCK   •   R RESTART', {
             fontSize: '14px', color: '#f6e5d4'
         }).setOrigin(0.5);
+        this.swordEffect = this.add.rectangle(0, 0, 47, 7, 0xf4e9ca).setVisible(false);
+        this.fpsText = this.add.text(820, 75, '', { fontSize: '15px', color: '#d9e9d2' }).setVisible(false);
         this.setupTouch();
         this.refreshHud();
     }
@@ -79,6 +90,14 @@ export class PalaceScene extends Phaser.Scene {
         if (Phaser.Input.Keyboard.JustDown(this.keys.R)) {
             this.scene.restart();
             return;
+        }
+        if (Phaser.Input.Keyboard.JustDown(this.keys.F)) {
+            this.showFps = !this.showFps;
+            this.fpsText.setVisible(this.showFps);
+        }
+        if (this.showFps && time >= this.nextFpsUpdate) {
+            this.fpsText.setText('FPS ' + Math.round(this.game.loop.actualFps));
+            this.nextFpsUpdate = time + 500;
         }
         if (this.gameOver) return;
 
@@ -98,8 +117,11 @@ export class PalaceScene extends Phaser.Scene {
         if (attack && !this.attackPressed && !block && time - this.lastAttack > 350) {
             this.lastAttack = time;
             const facing = this.player.flipX ? -1 : 1;
-            const sword = this.add.rectangle(this.player.x + facing * 39, this.player.y - 9, 47, 7, 0xf4e9ca);
-            this.tweens.add({ targets: sword, alpha: 0, duration: 160, onComplete: () => sword.destroy() });
+            this.tweens.killTweensOf(this.swordEffect);
+            this.swordEffect.setPosition(this.player.x + facing * 39, this.player.y - 9);
+            this.swordEffect.setAlpha(1).setVisible(true);
+            this.tweens.add({ targets: this.swordEffect, alpha: 0, duration: 160,
+                onComplete: () => this.swordEffect.setVisible(false) });
             if (this.guardAlive && Math.abs(this.player.x - this.guard.x) < 90 &&
                 Math.abs(this.player.y - this.guard.y) < 55 &&
                 (this.guard.x - this.player.x) * facing > 0) {
@@ -121,10 +143,17 @@ export class PalaceScene extends Phaser.Scene {
             this.guard.setFlipX(distance < 0);
             this.guard.setVelocityX(Math.abs(distance) > 75 && Math.abs(distance) < 340 ?
                 Math.sign(distance) * 75 : 0);
-            if (Math.abs(distance) < 66 && Math.abs(this.player.y - this.guard.y) < 60 &&
-                time - this.lastGuardAttack > 1050) {
+            const inRange = Math.abs(distance) < 66 && Math.abs(this.player.y - this.guard.y) < 60;
+            // Telegraph before striking: the player has time to react and block.
+            if (this.guardWindupUntil > 0 && time >= this.guardWindupUntil) {
+                this.guardWindupUntil = 0;
+                this.guard.clearTint();
                 this.lastGuardAttack = time;
-                if (!block && time >= this.invulnerableUntil) this.damage(time);
+                this.guardReadyAt = time + 1050;
+                if (inRange && !block && time >= this.invulnerableUntil) this.damage(time);
+            } else if (this.guardWindupUntil === 0 && inRange && time >= this.guardReadyAt) {
+                this.guardWindupUntil = time + 400;
+                this.guard.setTint(0xffcc66);
             }
         }
 
@@ -132,10 +161,6 @@ export class PalaceScene extends Phaser.Scene {
             if (!this.guardAlive) this.finish('VICTORY! Suvarnagiri will never kneel. Press R to replay.');
             else this.statusText.setText('Defeat the guard before escaping!');
         }
-    }
-
-    private guardContact(): void {
-        // Combat is handled through timed, readable proximity attacks.
     }
 
     private damage(time: number): void {
