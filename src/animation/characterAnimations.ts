@@ -50,17 +50,23 @@ export function hasCompleteCharacterAtlas(scene: Phaser.Scene, costume: Characte
     const atlas = 'aaranya-' + costume + '-atlas';
     if (!scene.textures.exists(atlas)) return false;
     const texture = scene.textures.get(atlas);
-    return Object.entries(VAYNIKA_STATES).every(([state, config]) =>
-        Array.from({ length: config.frames }, (_, i) =>
+    return ['idle', 'run', 'jump'].every(state => {
+        const config = VAYNIKA_STATES[state as 'idle' | 'run' | 'jump'];
+        return Array.from({ length: config.frames }, (_, i) =>
             texture.has(state + '_' + String(i).padStart(2, '0'))
-        ).every(Boolean)
-    );
+        ).every(Boolean);
+    });
 }
 
 export function registerCharacterAtlasAnimations(scene: Phaser.Scene, costume: CharacterCostume): void {
     if (!hasCompleteCharacterAtlas(scene, costume)) return;
     const atlas = 'aaranya-' + costume + '-atlas';
     for (const [state, config] of Object.entries(VAYNIKA_STATES)) {
+        const texture = scene.textures.get(atlas);
+        const complete = Array.from({ length: config.frames }, (_, i) =>
+            texture.has(state + '_' + String(i).padStart(2, '0'))
+        ).every(Boolean);
+        if (!complete) continue;
         const key = 'aaranya-' + costume + '-' + state;
         if (scene.anims.exists(key)) continue;
         scene.anims.create({
