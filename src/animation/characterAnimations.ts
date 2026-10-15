@@ -42,3 +42,35 @@ export function registerVaynikaAtlasAnimations(scene: Phaser.Scene): void {
         });
     }
 }
+
+export type CharacterCostume = 'crimson' | 'lehenga';
+
+/** All frames are required before the optional costume can replace the placeholder. */
+export function hasCompleteCharacterAtlas(scene: Phaser.Scene, costume: CharacterCostume): boolean {
+    const atlas = 'aaranya-' + costume + '-atlas';
+    if (!scene.textures.exists(atlas)) return false;
+    const texture = scene.textures.get(atlas);
+    return Object.entries(VAYNIKA_STATES).every(([state, config]) =>
+        Array.from({ length: config.frames }, (_, i) =>
+            texture.has(state + '_' + String(i).padStart(2, '0'))
+        ).every(Boolean)
+    );
+}
+
+export function registerCharacterAtlasAnimations(scene: Phaser.Scene, costume: CharacterCostume): void {
+    if (!hasCompleteCharacterAtlas(scene, costume)) return;
+    const atlas = 'aaranya-' + costume + '-atlas';
+    for (const [state, config] of Object.entries(VAYNIKA_STATES)) {
+        const key = 'aaranya-' + costume + '-' + state;
+        if (scene.anims.exists(key)) continue;
+        scene.anims.create({
+            key,
+            frames: Array.from({ length: config.frames }, (_, i) => ({
+                key: atlas,
+                frame: state + '_' + String(i).padStart(2, '0')
+            })),
+            frameRate: config.fps,
+            repeat: config.repeat
+        });
+    }
+}
