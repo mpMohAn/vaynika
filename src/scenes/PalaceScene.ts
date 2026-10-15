@@ -34,13 +34,14 @@ export class PalaceScene extends Phaser.Scene {
     private lastUpdateMs = 0;
     private attackAnimationUntil = 0;
 
-    constructor() { super('Palace'); }
+    constructor(availableCostume: CharacterCostume | null = null) {
+        super('Palace');
+        this.costume = availableCostume;
+    }
 
     preload(): void {
         // Opt-in art preview: ?costume=crimson or ?costume=lehenga.
         // Missing/incomplete assets never disable the existing playable prototype.
-        const requested = new URLSearchParams(window.location.search).get('costume');
-        this.costume = requested === 'crimson' || requested === 'lehenga' ? requested : null;
         if (this.costume) {
             const name = this.costume;
             this.load.atlas('aaranya-' + name + '-atlas',
