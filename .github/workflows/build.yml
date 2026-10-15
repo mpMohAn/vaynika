@@ -19,5 +19,7 @@ jobs:
           node-version: '22'
       - name: Install dependencies
         run: npm install --no-audit --no-fund
+      - name: Validate optional character atlases
+        run: npm run test:assets
       - name: Typecheck and build
         run: npm run build
